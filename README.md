@@ -12,7 +12,7 @@
 Netguardian is a network security monitoring dashboard designed to **observe, count, and visualize incoming traffic in real time**.  
 It provides insight into request rates, active sources, and traffic behavior, with the goal of understanding how different tools and methods interact with a target service.
 
-> This project is for **learning, testing, and testing your stresser (attack tools) only**.
+> This project is for **learning, and testing your stresser (attack tools) only**.
 
 ---
 
