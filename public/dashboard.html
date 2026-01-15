@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Netguardian - Attack Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #334155;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      font-size: 32px;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-idle {
+      background: #1e293b;
+      color: #64748b;
+    }
+
+    .status-active {
+      background: #ef4444;
+      color: white;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .header-controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toggle-label {
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .toggle {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      background: #475569;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .toggle.active {
+      background: #ef4444;
+    }
+
+    .toggle::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 24px;
+      height: 24px;
+      background: white;
+      border-radius: 12px;
+      transition: left 0.3s;
+    }
+
+    .toggle.active::after {
+      left: 22px;
+    }
+
+    button {
+      padding: 8px 16px;
+      background: #1e40af;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background: #1e3a8a;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .metric-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .metric-card.highlight {
+      border-color: #ef4444;
+      background: linear-gradient(135deg, #1e293b 0%, #2d1b1b 100%);
+    }
+
+    .metric-label {
+      font-size: 13px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    .metric-value {
+      font-size: 36px;
+      font-weight: 700;
+      color: #ffffff;
+      line-height: 1;
+    }
+
+    .metric-value.danger {
+      color: #ef4444;
+    }
+
+    .metric-value.success {
+      color: #10b981;
+    }
+
+    .metric-subtext {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 8px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 16px;
+      margin-bottom: 30px;
+    }
+
+    .chart-container {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th {
+      background: #0f172a;
+      padding: 12px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #334155;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #334155;
+      font-size: 13px;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .status-normal {
+      color: #10b981;
+      font-weight: 500;
+    }
+
+    .status-attacking {
+      color: #ef4444;
+      font-weight: 500;
+    }
+
+    .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 20px;
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #334155;
+    }
+
+    code {
+      background: #0f172a;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+    }
+
+    .endpoint-info {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+    }
+
+    .endpoint-info h3 {
+      font-size: 16px;
+      color: #0ea5e9;
+      margin-bottom: 12px;
+    }
+
+    .endpoint-info p {
+      font-size: 14px;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 768px) {
+      .metrics-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header-controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1><span class="logo">🛡️</span> Netguardian</h1>
+        <span class="status-badge status-idle" id="systemStatus">IDLE</span>
+      </div>
+      <div class="header-controls">
+        <div class="toggle-container">
+          <span class="toggle-label">Defense Mode:</span>
+          <button class="toggle" id="defenseToggle" onclick="toggleDefenseMode()"></button>
+        </div>
+        <button onclick="clearStats()">Clear Stats</button>
+      </div>
+    </header>
+
+    <div class="endpoint-info">
+      <h3>A tool to test how capable your stresser or attack tools are</h3>
+      <p>Point your attack tool to: <code>http://your-server-ip:3000</code> It will accept all incoming traffic and provide detailed metrics and logs for analysis.</p>
+      <p>The server will accept ALL traffic and log everything for visualization.</p>
+      <p><code>Please don't destroy my server :)</code></p>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="metric-card highlight">
+        <div class="metric-label">Packets Per Second</div>
+        <div class="metric-value danger" id="ppsValue">0</div>
+        <div class="metric-subtext">Attack intensity</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Packets Received</div>
+        <div class="metric-value" id="totalPackets">0</div>
+        <div class="metric-subtext">Since server start</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Attack Sources</div>
+        <div class="metric-value" id="activeIps">0</div>
+        <div class="metric-subtext">Unique IPs attacking</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Data Received/sec</div>
+        <div class="metric-value success" id="bytesPerSec">0 B</div>
+        <div class="metric-subtext">Incoming bandwidth</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-container">
+        <div class="chart-title">Attack Intensity (Packets/Second)</div>
+        <canvas id="ppsChart"></canvas>
+      </div>
+      <div class="chart-container">
+        <div class="chart-title">Bandwidth Received (Bytes/Second)</div>
+        <canvas id="bytesChart"></canvas>
+      </div>
+    </div>
+
+    <h2 class="section-title">Attack Sources (Top Attackers)</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>IP Address</th>
+          <th>PPS</th>
+          <th>Total Packets</th>
+          <th>Data Received</th>
+          <th>Status</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+      <tbody id="ipsTable">
+        <tr>
+          <td colspan="6" style="text-align: center; color: #64748b;">Waiting for attacks...</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">Defense Log</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>IP</th>
+          <th>Action</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody id="defenseLog">
+        <tr>
+          <td colspan="4" style="text-align: center; color: #64748b;">No defense actions yet</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    let ppsChart, bytesChart;
+    let ppsHistory = [];
+    let bytesHistory = [];
+    const maxHistoryPoints = 30;
+
+    function formatBytes(bytes) {
+      if (bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
+    }
+
+    function initCharts() {
+      const ctx1 = document.getElementById('ppsChart').getContext('2d');
+      ppsChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'PPS',
+            data: [],
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#334155' },
+              ticks: { color: '#94a3b8' }
+            },
+            x: {
+              grid: { color: '#334155' },
+              ticks: { color: '#94a3b8' }
+            }
+          }
+        }
+      });
+
+      const ctx2 = document.getElementById('bytesChart').getContext('2d');
+      bytesChart = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [{
+            label: 'Bytes/sec',
+            data: [],
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 0,
+            pointHoverRadius: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: { color: '#334155' },
+              ticks: { color: '#94a3b8' }
+            },
+            x: {
+              grid: { color: '#334155' },
+              ticks: { color: '#94a3b8' }
+            }
+          }
+        }
+      });
+    }
+
+    async function fetchMetrics() {
+      try {
+        const response = await fetch('/api/metrics');
+        const data = await response.json();
+
+        const pps = parseFloat(data.global.pps);
+        const bps = parseFloat(data.global.bytesPerSecond);
+
+        document.getElementById('ppsValue').textContent = data.global.pps;
+        document.getElementById('totalPackets').textContent = data.global.totalPackets;
+        document.getElementById('activeIps').textContent = data.global.uniqueIps;
+        document.getElementById('bytesPerSec').textContent = formatBytes(bps);
+
+        // Update system status
+        const statusBadge = document.getElementById('systemStatus');
+        if (pps > 0) {
+          statusBadge.textContent = 'UNDER ATTACK';
+          statusBadge.className = 'status-badge status-active';
+        } else {
+          statusBadge.textContent = 'IDLE';
+          statusBadge.className = 'status-badge status-idle';
+        }
+
+        ppsHistory.push(pps);
+        bytesHistory.push(bps);
+
+        if (ppsHistory.length > maxHistoryPoints) {
+          ppsHistory.shift();
+          bytesHistory.shift();
+        }
+
+        const labels = ppsHistory.map((_, i) => (i + 1).toString());
+        
+        ppsChart.data.labels = labels;
+        ppsChart.data.datasets[0].data = ppsHistory;
+        ppsChart.update('none');
+
+        bytesChart.data.labels = labels;
+        bytesChart.data.datasets[0].data = bytesHistory;
+        bytesChart.update('none');
+
+        const tbody = document.getElementById('ipsTable');
+        if (data.ips.length > 0) {
+          tbody.innerHTML = data.ips.map(ip => `
+            <tr>
+              <td><code>${ip.ip}</code></td>
+              <td>${ip.pps}</td>
+              <td>${ip.packets}</td>
+              <td>${formatBytes(ip.bytesIn)}</td>
+              <td><span class="status-${ip.status}">${ip.status.toUpperCase()}</span></td>
+              <td style="font-size: 12px; color: #94a3b8;">${new Date(ip.lastSeen).toLocaleTimeString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #64748b;">Waiting for attacks...</td></tr>';
+        }
+
+        const defenseLogTbody = document.getElementById('defenseLog');
+        if (data.defenseLog.length > 0) {
+          defenseLogTbody.innerHTML = data.defenseLog.slice().reverse().map(log => `
+            <tr>
+              <td style="font-size: 12px;">${new Date(log.timestamp).toLocaleTimeString()}</td>
+              <td><code>${log.ip || 'N/A'}</code></td>
+              <td style="color: #ef4444; font-weight: 500;">${log.action}</td>
+              <td style="color: #94a3b8; font-size: 12px;">${log.pps ? `PPS: ${log.pps}` : ''}</td>
+            </tr>
+          `).join('');
+        } else {
+          defenseLogTbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #64748b;">No defense actions yet</td></tr>';
+        }
+
+        const toggle = document.getElementById('defenseToggle');
+        if (data.defenseMode) {
+          toggle.classList.add('active');
+        } else {
+          toggle.classList.remove('active');
+        }
+      } catch (error) {
+        console.error('Error fetching metrics:', error);
+      }
+    }
+
+    async function toggleDefenseMode() {
+      try {
+        const toggle = document.getElementById('defenseToggle');
+        const enabled = !toggle.classList.contains('active');
+        
+        const response = await fetch('/api/defense-mode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ enabled })
+        });
+        
+        const data = await response.json();
+        console.log(data.message);
+        fetchMetrics();
+      } catch (error) {
+        console.error('Error toggling defense mode:', error);
+      }
+    }
+
+    async function clearStats() {
+      if (confirm('Clear all statistics and metrics?')) {
+        try {
+          await fetch('/api/clear-stats', { method: 'POST' });
+          ppsHistory = [];
+          bytesHistory = [];
+          fetchMetrics();
+        } catch (error) {
+          console.error('Error clearing stats:', error);
+        }
+      }
+    }
+
+    // Initialize
+    initCharts();
+    fetchMetrics();
+    setInterval(fetchMetrics, 1000);
+  </script>
+  <footer style="text-align: center; padding: 20px; color: #ffffff; font-size: 12px;">
+    Credit: Prom Sereyreaksa
+  </footer>
+</body>
+</html>
